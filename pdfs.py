@@ -16,7 +16,7 @@ def main():
     ]
 
     for user in users:
-        c = canvas.Canvas(f"{user['name']}.pdf")
+        c = canvas.Canvas(f"pdfs/{user['name']}.pdf")
 
         c.drawImage("images/coovitel.png", 40, 740, width=190, height=45)
         
@@ -53,9 +53,6 @@ def main():
         c.setFont("Helvetica", 9)
         c.drawString(400, 482, f"01 de Febrero al 29 Febrero 2024")
         
-        
-        
-                
         data = [
             ['Saldo Anterior', 'Débitos', 'Créditos', 'Saldo Actual'],
             ['11.174.176.561', '5.000.000.000', '107.983.377', '6.282.159.938']
@@ -72,6 +69,34 @@ def main():
         
         table.wrapOn(c, 500, 200)
         table.drawOn(c, 45, 400)
+        
+        movements = [
+            ['Fecha', 'Transacción', 'Documento', 'Sucursal', 'Débito', 'Crédito', 'Saldos']
+        ]
+        
+        moves = [
+            ['02-FEB-24', 'ABONO RECAUDO IMPUESTO MUNICIPALES 02FEB2024', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['12-FEB-24', 'SOLICITUD TRANSLADO FONDOS PAD_142-10076 DE FEBRERO 12 PARA LA CUENTA CORRIENTE BANCO OCCIDENTE', '11000078', '11', '5.000.000.000', '0', '6.174.604.561'],
+            ['14-FEB-24', 'ABONO RECAUDO IMPUESTO SMUNICIPALES 14FEB2024', '1120000002', '11', '0', '5.794.000', '6.180.398.561'],
+            ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['20-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+        ]
+        
+        for mov in moves:
+            movements.append(mov)
+        
+        table2 = Table(movements, colWidths=70)
+        
+        table2.setStyle(TableStyle([
+            ('ROUNDEDCORNERS', (0, 0), (-1, -1), 100),
+            ('BOX', (0, 0), (-1, -1), 0.25, (0,0,0)), # Agrega un borde alrededor de toda la tabla
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTSIZE', (0, 0), (-1, -1), 6),
+        ]))
+        
+        table2.wrapOn(c, 200, 200)
+        table2.drawOn(c, 45, 200)
         
         c.save()
     
