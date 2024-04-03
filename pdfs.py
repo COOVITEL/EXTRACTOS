@@ -1,6 +1,13 @@
+#!/usr/bin/python3
 from reportlab.pdfgen import canvas
 from PyPDF2 import PdfWriter, PdfReader
-from reportlab.platypus import Table, TableStyle
+from reportlab.platypus import Table, TableStyle, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.units import mm
+from reportlab.lib.pagesizes import letter
+
 
 def main():
 
@@ -16,7 +23,7 @@ def main():
     ]
 
     for user in users:
-        c = canvas.Canvas(f"pdfs/{user['name']}.pdf")
+        c = canvas.Canvas(f"pdfs/{user['name']}.pdf", pagesize=letter)
 
         c.drawImage("images/coovitel.png", 40, 740, width=190, height=45)
         
@@ -53,27 +60,26 @@ def main():
         c.setFont("Helvetica", 9)
         c.drawString(400, 482, f"01 de Febrero al 29 Febrero 2024")
         
+        
         data = [
             ['Saldo Anterior', 'Débitos', 'Créditos', 'Saldo Actual'],
             ['11.174.176.561', '5.000.000.000', '107.983.377', '6.282.159.938']
-        ]
-        
+        ]  
         table = Table(data, colWidths=125)
-        
         table.setStyle(TableStyle([
-            ('ROUNDEDCORNERS', (0, 0), (-1, -1), 100),
+            ('ROUNDEDCORNERS', [4, 4, 4, 4]),            
             ('BOX', (0, 0), (-1, -1), 0.25, (0,0,0)), # Agrega un borde alrededor de toda la tabla
             ('INNERGRID', (0, 0), (-1, -1), 0.25, (0,0,0)),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ]))
-        
         table.wrapOn(c, 500, 200)
         table.drawOn(c, 45, 400)
+        
+        
         
         movements = [
             ['Fecha', 'Transacción', 'Documento', 'Sucursal', 'Débito', 'Crédito', 'Saldos']
         ]
-        
         moves = [
             ['02-FEB-24', 'ABONO RECAUDO IMPUESTO MUNICIPALES 02FEB2024', '11000607', '11', '0', '428.000', '11.174.604.561'],
             ['12-FEB-24', 'SOLICITUD TRANSLADO FONDOS PAD_142-10076 DE FEBRERO 12 PARA LA CUENTA CORRIENTE BANCO OCCIDENTE', '11000078', '11', '5.000.000.000', '0', '6.174.604.561'],
@@ -81,22 +87,63 @@ def main():
             ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
             ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
             ['20-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+                        ['02-FEB-24', 'ABONO RECAUDO IMPUESTO MUNICIPALES 02FEB2024', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['12-FEB-24', 'SOLICITUD TRANSLADO FONDOS PAD_142-10076 DE FEBRERO 12 PARA LA CUENTA CORRIENTE BANCO OCCIDENTE', '11000078', '11', '5.000.000.000', '0', '6.174.604.561'],
+            ['14-FEB-24', 'ABONO RECAUDO IMPUESTO SMUNICIPALES 14FEB2024', '1120000002', '11', '0', '5.794.000', '6.180.398.561'],
+            ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['20-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+                        ['02-FEB-24', 'ABONO RECAUDO IMPUESTO MUNICIPALES 02FEB2024', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['12-FEB-24', 'SOLICITUD TRANSLADO FONDOS PAD_142-10076 DE FEBRERO 12 PARA LA CUENTA CORRIENTE BANCO OCCIDENTE', '11000078', '11', '5.000.000.000', '0', '6.174.604.561'],
+            ['14-FEB-24', 'ABONO RECAUDO IMPUESTO SMUNICIPALES 14FEB2024', '1120000002', '11', '0', '5.794.000', '6.180.398.561'],
+            ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['20-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+                        ['02-FEB-24', 'ABONO RECAUDO IMPUESTO MUNICIPALES 02FEB2024', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['12-FEB-24', 'SOLICITUD TRANSLADO FONDOS PAD_142-10076 DE FEBRERO 12 PARA LA CUENTA CORRIENTE BANCO OCCIDENTE', '11000078', '11', '5.000.000.000', '0', '6.174.604.561'],
+            ['14-FEB-24', 'ABONO RECAUDO IMPUESTO SMUNICIPALES 14FEB2024', '1120000002', '11', '0', '5.794.000', '6.180.398.561'],
+            ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['20-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+                        ['02-FEB-24', 'ABONO RECAUDO IMPUESTO MUNICIPALES 02FEB2024', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['12-FEB-24', 'SOLICITUD TRANSLADO FONDOS PAD_142-10076 DE FEBRERO 12 PARA LA CUENTA CORRIENTE BANCO OCCIDENTE', '11000078', '11', '5.000.000.000', '0', '6.174.604.561'],
+            ['14-FEB-24', 'ABONO RECAUDO IMPUESTO SMUNICIPALES 14FEB2024', '1120000002', '11', '0', '5.794.000', '6.180.398.561'],
+            ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['16-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
+            ['20-FEB-24', 'ABONO RECAUDO IMPUESTO', '11000607', '11', '0', '428.000', '11.174.604.561'],
         ]
+        movements += [mov for mov in moves]
+        styles = getSampleStyleSheet()
+        styleN = styles['Normal']
+        styleN.wordWrap = 'CJK'
+        styleN.fontSize = 7
+        styleN.alignment = TA_CENTER
         
-        for mov in moves:
-            movements.append(mov)
+        data2 = [[Paragraph(cell, styleN) for cell in row] for row in movements]
+            
+        colWidth = [50, 130, 60, 45, 75, 75, 75]
+                
+        t = Table(data2, colWidths=colWidth)
         
-        table2 = Table(movements, colWidths=70)
-        
-        table2.setStyle(TableStyle([
-            ('ROUNDEDCORNERS', (0, 0), (-1, -1), 100),
+        tableStyle = [
+            ('ROUNDEDCORNERS', [4, 4, 4, 4]),
             ('BOX', (0, 0), (-1, -1), 0.25, (0,0,0)), # Agrega un borde alrededor de toda la tabla
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTSIZE', (0, 0), (-1, -1), 6),
-        ]))
+            ('VALING', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 1.2, (0, 0, 0)),
+            ('FONTSIZE', (0, 0), (-1, -1), 15)
+        ]
         
-        table2.wrapOn(c, 200, 200)
-        table2.drawOn(c, 45, 200)
+        t.setStyle(TableStyle(tableStyle))
+        rows_per_page = 10
+        for i in range(0, len(data2), rows_per_page):
+            # Dibuja solo las filas que caben en la página actual
+            t.wrapOn(c, 800, rows_per_page * 100)
+            t.drawOn(c, 40, -500)
+
+            # Si hay más filas, comienza una nueva página
+            if i + rows_per_page < len(data2):
+                c.showPage()
         
         c.save()
     
