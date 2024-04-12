@@ -1,12 +1,16 @@
 import cx_Oracle
 import pandas as pd
 from decrypt import decrypt
+from dotenv import load_dotenv
+import os
 
-ip = '192.168.1.139'
-port = '1521'
-service = decrypt('krfojra', 'valkiria')
-username = decrypt('nqcpb', 'ciphernewman')
-userpassword = decrypt('gqtmk', 'vigenerepython')
+load_dotenv()
+
+ip = os.getenv('IP')
+port = os.getenv('PORT')
+service = decrypt(os.getenv('SERVICENAME'), os.getenv('SERVICEENCRYPT'))
+username = decrypt(os.getenv('USERNAME'), os.getenv('USERNAMEENCRYPT'))
+userpassword = decrypt(os.getenv('PASSWORD'), os.getenv('PASSWORDENCRYPT'))
 
 
 # Configuración de la conexión
@@ -47,13 +51,17 @@ if conn:
                        SELECT CEDULA, NNASOCIA, REGIONAL, CUENTA, ESTADO FROM BI_AHORRO_VISTA_MES WHERE ESTADO IS NOT NULL
                        """)
                         # 1037 + CUENTA
-        data = cursor.fetchall()
+        # For you can all dates in the query  use fetchall()
+        # data = cursor.fetchall()
+        
+        data = cursor.fetchmany(20)
         columns = [desc[0] for desc in cursor.description]
         
         results = [dict(zip(columns, row)) for row in data]
 
         
-        print(len(results))
+        for result in results:
+            print(result)
 
     except cx_Oracle.DatabaseError as e:
         error, = e.args
