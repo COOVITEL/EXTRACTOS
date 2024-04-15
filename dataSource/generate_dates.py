@@ -8,7 +8,7 @@ fake = Faker()
 def main():
 
     datos_users = []
-    for _ in range(3):
+    for _ in range(5):
         usuario = {
             "username": fake.user_name(),
             "cedula": fake.random_number(digits=8),
