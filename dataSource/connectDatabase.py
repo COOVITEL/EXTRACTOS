@@ -41,15 +41,15 @@ if conn:
 
                         # 1037 + CUENTA
         # For you can all dates in the query  use fetchall()
-        data = cursor.fetchall()
-        #data = cursor.fetchmany(3)
+        #data = cursor.fetchall()
+        data = cursor.fetchmany(3)
         columns = [desc[0] for desc in cursor.description]
         
         results = [dict(zip(columns, row)) for row in data]
 
-        print(len(results))
-        #for result in results:
-        #    print(result)
+        #print(len(results))
+        for result in results:
+            print(result)
 
     except cx_Oracle.DatabaseError as e:
         error, = e.args

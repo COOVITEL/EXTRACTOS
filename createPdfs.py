@@ -3,18 +3,64 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.enums import TA_CENTER
 from dataSource import data as DataUsers
+from dataSource.usersBase import usersBase
+from dataSource.movsUsersBase import movsBase
 from time import time
 import pandas as pd
 from pandas import ExcelWriter
 from datetime import datetime
+from dataSource.generate_mov import generate_mov
+import random
+import currentDate
+
+
+
+def current(init, end):
+    """"""
+    monthsYear = {
+    "01": 'Enero',
+    "02": 'Febrero',
+    "03": 'Marzo',
+    "04": 'Abril',
+    "05": 'Mayo',
+    "06": 'Junio',
+    "07": 'Julio',
+    "08": 'Agosto',
+    "09": 'Septiembre',
+    "10": 'Octubre',
+    "11": 'Noviembre',
+    "12": 'Diciembre'
+}
+    dates = init.split("-")
+    start = dates[2]
+    last = end.split("-")[2]
+    month = monthsYear[dates[1]]
+    return f"{start} de {month} al {last} {dates[0]}"
 
 
 def main():
     star_time = time()
-    dataUsers = DataUsers.data
     
-    for user in dataUsers:
+    usersData = usersBase()
+    movimentsData = movsBase()
+    
+    usersList = []
+    for user in usersData:
+        if user["SALDOINI"] != 0 or user["SALDOFIN"]:
+            userStructure = {}
+            userStructure["username"] = user["NNASOCIA"]
+            userStructure["id"] = str(user["AANUMNIT"])
+            userStructure["cuenta"] = str(user["N_CUENTA"])
+            userStructure["fecha"] = current(str(user["F_INI"]).split(" ")[0], str(user["F_FIN"]).split(" ")[0])
+            userStructure["estado"] = "CANCELADA" if user["I_ESTADO"] == "C" else "ACTIVO"
+            userStructure["saldo_anterior"] = str(user["SALDOINI"])
+            userStructure["saldo_actual"] = str(user["SALDOFIN"])
+            userStructure["debitos"] = str(0)
+            userStructure["creditos"] = str(0)
+            userStructure["movimientos"] = [movs for movs in movimentsData if user["K_CUENTA"] == movs["K_CUENTA"]]
+            usersList.append(userStructure)
         
+    for user in usersList:
         # Crear el documento
         doc = BaseDocTemplate(f"pdfs/{user['username']}.pdf", pagesize=letter)
 
@@ -37,8 +83,8 @@ def main():
             # Datos y numero de cuenta del titular del producto
             canvas.setFillColorRGB(0, 0, 0)
             canvas.setFont("Helvetica-Bold", 8)
-            canvas.drawString(45, 700, f"891800186")
-            canvas.drawString(45, 692, f"MUNICIPIO {user['city']}")
+            canvas.drawString(45, 700, f"{user['id']}")
+            canvas.drawString(45, 692, f"{user['username']}")
             
             #Rectangulo 
             canvas.roundRect(330, 682, width=225, height=37, radius=3)
@@ -63,7 +109,7 @@ def main():
             canvas.setFont("Helvetica-Bold", 9)
             canvas.drawString(430, 465, f"Periodo del informe")
             canvas.setFont("Helvetica", 9)
-            canvas.drawString(410, 452, f"01 de Febrero al 29 Febrero 2024")
+            canvas.drawString(410, 452, f"{user['fecha']}")
             
             # Tabla principal con los datos finales dentro del documento
             data = [
@@ -133,24 +179,25 @@ def main():
         
         for mov in user['movimientos']:
             # Datos para el documento excel
-            currentDate = datetime.strptime(mov['fecha'], "%d-%b-%y")
-            dates.append(currentDate)
-            number.append(mov['documento'])
-            year = "20" + mov['fecha'].split("-")[2]
+            #currentDate = datetime.strptime(str(mov['F_MOVIMI']).split(" ")[1], "%d-%b-%y")
+            currentDateMov = str(mov['F_MOVIMI']).split(' ')[0]
+            dates.append(currentDateMov)
+            number.append(mov['K_NUMDOC'])
+            year = currentDateMov.split("-")[0]
             año.append(year)
-            description.append(mov['lugar'])
-            debito.append(mov['debito'])
-            credito.append(mov['credito'])
-            saldo.append(mov['saldos'])
+            description.append(mov['N_MOVIMI'])
+            debito.append(mov['V_DBPESO'])
+            credito.append(mov['V_CRPESO'])
+            saldo.append(mov['V_CANJ'])
             # Datos para el documento pdf
             movs = [
-                str(mov['fecha']),
-                str(mov['lugar']).lower().capitalize()[0:40],
-                str(mov['documento']),
-                str(mov['sucursal']),
-                str(mov['debito']),
-                str(mov['credito']),
-                str(mov['saldos'])
+                str(mov['F_MOVIMI']).split(' ')[0],
+                str(mov['N_MOVIMI']).lower().capitalize()[0:40],
+                str(mov['K_NUMDOC']),
+                "Bogotá",
+                str(mov['V_DBPESO']),
+                str(mov['V_CRPESO']),
+                str(mov['V_CANJ'])
             ]
             data.append(movs)
         
@@ -186,6 +233,8 @@ def main():
         # Construir el documento
         doc.build(story)
         
+        
+        
         # Crea el documento Excel
         df = pd.DataFrame({
             'Fecha': dates,
@@ -209,12 +258,11 @@ def main():
         
         
         
-        
     end_time = time()
     
-    print(f"El tiempo inicar es de {star_time}")
-    print(f"El tiempo final es de {end_time}")
+    #print(f"El tiempo inicar es de {star_time}")
+    #print(f"El tiempo final es de {end_time}")
     total_time = end_time - star_time
-    print(f"El tiempo final de ejecucion es de {total_time}")
+    #print(f"El tiempo final de ejecucion es de {total_time}")
 if __name__ == '__main__':
     main()
