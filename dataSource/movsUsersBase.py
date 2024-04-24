@@ -7,9 +7,9 @@ load_dotenv()
 
 IP = os.getenv('IP')
 PORT = os.getenv('PORT')
-SERVICE = "LINIX"
-NAME = "VISTAS"
-PASSWORD = "VISTAS"
+SERVICE = os.getenv('SERVICENAME')
+NAME = os.getenv('USERNAME')
+PASSWORD = os.getenv('PASSWORD')
 
 def movsBase():
     """ This function calls all moves of the users"""

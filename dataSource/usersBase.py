@@ -7,9 +7,9 @@ load_dotenv()
 
 IP = os.getenv('IP')
 PORT = os.getenv('PORT')
-SERVICE = "LINIX"
-NAME = "VISTAS"
-PASSWORD = "VISTAS"
+SERVICE = os.getenv('SERVICENAME')
+NAME = os.getenv('USERNAME')
+PASSWORD = os.getenv('PASSWORD')
 
 def usersBase():
     """ This function calls all users with CA """
@@ -20,7 +20,8 @@ def usersBase():
             with conn.cursor() as cursor:
                 query = "SELECT * FROM Ahorr_vist_encab"
                 cursor.execute(query)
-                data = cursor.fetchall()
+                data = cursor.fetchmany(30)
+                #data = cursor.fetchall()
                 columns = [desc[0] for desc in cursor.description]
                 users = [dict(zip(columns, row)) for row  in data]
                 return users

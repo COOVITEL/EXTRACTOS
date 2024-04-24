@@ -2,18 +2,37 @@ from reportlab.platypus import BaseDocTemplate, PageTemplate, Frame, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.enums import TA_CENTER
-from dataSource import data as DataUsers
 from dataSource.usersBase import usersBase
 from dataSource.movsUsersBase import movsBase
 from time import time
 import pandas as pd
 from pandas import ExcelWriter
-from datetime import datetime
-from dataSource.generate_mov import generate_mov
-import random
-import currentDate
+from PyPDF2 import PdfWriter, PdfReader
 
-
+def cuentaInter():
+    try:
+        # Intenta leer el archivo Excel
+        df = pd.read_excel("dataSource/cuentasInter.xlsx")
+        
+        # Verifica si las columnas existen en el DataFrame
+        columns = ['documento', 'Cuenta Coovitel', 'Cuenta Interbancaria']
+        if not all(column in df.columns for column in columns):
+            print("Algunas columnas no existen en el archivo Excel.")
+            return []
+        
+        # Selecciona solo algunas columnas
+        df_selected = df[columns]
+        
+        # Convierte el DataFrame seleccionado en una lista de diccionarios
+        listDates = df_selected.to_dict(orient='records')
+        
+        return listDates
+    except FileNotFoundError:
+        print("El archivo Excel no se encontró.")
+        return []
+    except Exception as e:
+        print(f"Ocurrió un error al leer el archivo Excel: {e}")
+        return []
 
 def current(init, end):
     """"""
@@ -35,34 +54,77 @@ def current(init, end):
     start = dates[2]
     last = end.split("-")[2]
     month = monthsYear[dates[1]]
-    return f"{start} de {month} al {last} {dates[0]}"
+    return f"{start} al {last} de {month} del {dates[0]}"
 
+def countMoves(listMoves, valueInit):
+    newList = []
+    currentValue = valueInit
+    dbTotal = 0
+    cdTotal = 0
+    for date in listMoves:
+        datesMoves = {}
+        datesMoves["fecha"] = str(date['F_MOVIMI']).split(' ')[0]
+        datesMoves["descripcion"] = str(date['N_MOVIMI']).lower().capitalize()
+        datesMoves["numMov"] = str(date['K_NUMDOC'])
+        datesMoves["lugar"] = "Bogotá"
+        
+        datesMoves["debito"] = str(date['V_DBPESO'])
+        dbTotal += int(date['V_DBPESO'])
+        
+        datesMoves["credito"] = str(date['V_CRPESO'])
+        cdTotal += int(date['V_CRPESO'])
+        
+        currentValue = currentValue - int(date['V_DBPESO']) + int(date['V_CRPESO'])
+        datesMoves["total"] = str(currentValue)
+        newList.append(datesMoves)
+    return newList, dbTotal, cdTotal
+    rev = "".join(reversed(str(value)))
+    sep = [rev[i:i+3] for i in range(0, len(rev), 3)]
+    return ".".join(reversed(sep))
 
 def main():
     star_time = time()
     
     usersData = usersBase()
+    
     movimentsData = movsBase()
+
+    listCuentas = cuentaInter()
     
     usersList = []
     for user in usersData:
-        if user["SALDOINI"] != 0 or user["SALDOFIN"]:
             userStructure = {}
             userStructure["username"] = user["NNASOCIA"]
             userStructure["id"] = str(user["AANUMNIT"])
             userStructure["cuenta"] = str(user["N_CUENTA"])
+            try:
+                filterCuentaInt = [str(cuentInt['Cuenta Interbancaria']) for cuentInt in listCuentas if int(cuentInt["documento"]) == int(user["AANUMNIT"])][0]
+            except IndexError:
+                continue
+            userStructure["cuentaInt"] = filterCuentaInt if filterCuentaInt else "N/A"
             userStructure["fecha"] = current(str(user["F_INI"]).split(" ")[0], str(user["F_FIN"]).split(" ")[0])
             userStructure["estado"] = "CANCELADA" if user["I_ESTADO"] == "C" else "ACTIVO"
             userStructure["saldo_anterior"] = str(user["SALDOINI"])
             userStructure["saldo_actual"] = str(user["SALDOFIN"])
-            userStructure["debitos"] = str(0)
-            userStructure["creditos"] = str(0)
-            userStructure["movimientos"] = [movs for movs in movimentsData if user["K_CUENTA"] == movs["K_CUENTA"]]
+            listMoves = [movs for movs in movimentsData if user["K_CUENTA"] == movs["K_CUENTA"]]
+            
+            movimientos, dbTotal, cdTotal = countMoves(listMoves, user["SALDOINI"])
+            
+            userStructure["movimientos"] = movimientos
+            userStructure["debitos"] = dbTotal
+            userStructure["creditos"] = cdTotal
+            
+            if userStructure["estado"] == "CANCELADA" and userStructure["movimientos"] == []:
+                continue
+
             usersList.append(userStructure)
-        
+
     for user in usersList:
         # Crear el documento
-        doc = BaseDocTemplate(f"pdfs/{user['username']}.pdf", pagesize=letter)
+        dateFile = user['fecha'].split(" ")
+        nameFile = f"{dateFile[4][:3].upper()}-{dateFile[6]}_ID_"
+        name = f"{nameFile}{user['id']}_EXTRACTO_CTA_AHORRO.PDF"
+        doc = BaseDocTemplate(f"pdfs/{name}", pagesize=letter)
 
         # Definir el estilo de los elementos del documento
         styles = getSampleStyleSheet()
@@ -96,9 +158,9 @@ def main():
             canvas.setFillColorRGB(0.430, 0.470, 0.470)
             canvas.setFont("Helvetica-Bold", 11)
             canvas.drawString(45, 470, f"Cuenta Coopcentral")
-            canvas.drawString(48, 457, f"{user['cuenta']}")
+            canvas.drawString(48, 457, f"{user['cuentaInt']}")
             canvas.drawString(190, 470, f"Cuenta de Ahorros Coovitel")
-            canvas.drawString(190, 457, f"{user['cuenta']}")
+            canvas.drawString(190, 457, f"00{user['cuenta']}")
             canvas.drawString(45, 440, f"Estado: {user['estado']}")
             
             # Rectangulo para la fecha del documento
@@ -114,8 +176,14 @@ def main():
             # Tabla principal con los datos finales dentro del documento
             data = [
                 ['Saldo Anterior', 'Débitos', 'Créditos', 'Saldo Actual'],
-                [user['saldo_anterior'], user['debitos'], user['creditos'], user['saldo_actual']]
+                [
+                    format(int(float(user['saldo_anterior'])), ','), 
+                    format(int(float(user['debitos'])), ','), 
+                    format(int(float(user['creditos'])), ','), 
+                    format(int(float(user['saldo_actual'])), ',')
+                ]
             ]
+
             # Definicion de tamaño de cada una de las columnas dentro del documento
             table = Table(data, colWidths=130)
             # Estilos de lla tabla general 
@@ -171,7 +239,7 @@ def main():
         # Definicion de las columnas prensentes en la segunda tabla, la cual contendra
         # los movimientos de los extractos del titular
         data = [
-            ['Fecha', 'Transacción', 'Documento', 'Sucursal', 'Débito', 'Crédito', 'Saldos'],
+            ['Fecha', 'Transacción', 'Documento', 'Débito', 'Crédito', 'Saldos'],
         ]
         
         # Loop que agrega los movimientos dentro de la lista de movimientos y a las listas de las columnas excel
@@ -179,25 +247,38 @@ def main():
         
         for mov in user['movimientos']:
             # Datos para el documento excel
-            #currentDate = datetime.strptime(str(mov['F_MOVIMI']).split(" ")[1], "%d-%b-%y")
-            currentDateMov = str(mov['F_MOVIMI']).split(' ')[0]
-            dates.append(currentDateMov)
-            number.append(mov['K_NUMDOC'])
-            year = currentDateMov.split("-")[0]
-            año.append(year)
-            description.append(mov['N_MOVIMI'])
-            debito.append(mov['V_DBPESO'])
-            credito.append(mov['V_CRPESO'])
-            saldo.append(mov['V_CANJ'])
+            date = mov['fecha'].split("-")
+            date.reverse()
+            setDate = "/".join(date)
+            
+            dates.append(setDate)
+            number.append(int(mov['numMov']))
+            description.append(mov['descripcion'])
+            año.append(int(mov['fecha'].split("-")[0]))
+            debito.append(format(int(mov['debito']), ','))
+            credito.append(format(int(mov['credito']), ','))
+            try:
+                # Intenta convertir la cadena a un entero
+                saldo.append(format(int(mov['total']), ','))
+            except ValueError:
+                # Si falla, convierte la cadena a un float y luego a un entero
+                saldo.append(format(int(float(mov['total'])), ','))
+            
             # Datos para el documento pdf
+            try:
+                # Intenta convertir la cadena a un entero
+                total = format(int(mov['total']), ',')
+            except ValueError:
+                # Si falla, convierte la cadena a un float y luego a un entero
+                total = format(int(float(mov['total'])), ',')
+                
             movs = [
-                str(mov['F_MOVIMI']).split(' ')[0],
-                str(mov['N_MOVIMI']).lower().capitalize()[0:40],
-                str(mov['K_NUMDOC']),
-                "Bogotá",
-                str(mov['V_DBPESO']),
-                str(mov['V_CRPESO']),
-                str(mov['V_CANJ'])
+                str(mov['fecha']),
+                str(mov['descripcion'])[0:34] + "...",
+                str(mov['numMov']),
+                format(int(mov['debito']), ','),
+                format(int(mov['credito']), ','),
+                total
             ]
             data.append(movs)
         
@@ -206,16 +287,16 @@ def main():
         styleN = styles['Normal']
         styleN.wordWrap = 'CJK'
         styleN.alignment = TA_CENTER
-        styleN.fontSize = 7.5
+        styleN.fontSize = 7
 
         # Crear un estilo para las primeras tres filas con un tamaño de fuente diferente
         styleN_large = styleN.clone('styleN_large')
-        styleN_large.fontSize = 9 # Tamaño de fuente más grande para las primeras tres filas
+        styleN_large.fontSize = 9.5 # Tamaño de fuente más grande para las primeras tres filas
 
         # Generar las filas de la tabla con el estilo modificado para las primeras tres filas
         data2 = [[Paragraph(cell, styleN_large if i == 0 else styleN) for cell in row] for i, row in enumerate(data)]
                 
-        colWidth = [60, 125, 60, 51, 73, 73, 73]
+        colWidth = [60, 180, 64, 70, 70, 70] # 514
         
         table = Table(data2, colWidths=colWidth)
         tableStyle = [
@@ -223,6 +304,7 @@ def main():
             ('GRID', (0,0), (-1,-1), 0.1, (0,0,0)),
             ('VALING', (0, 0), (-1, -1), 'MIDDLE'),
             ('ROUNDEDCORNERS', [4, 4, 4, 4]),
+            ('PADDING', (0, 0), (-1, -1), 0),
         ]
         
         table.setStyle(tableStyle)
@@ -231,9 +313,7 @@ def main():
         story = [table]
 
         # Construir el documento
-        doc.build(story)
-        
-        
+        doc.build(story)    
         
         # Crea el documento Excel
         df = pd.DataFrame({
@@ -255,14 +335,28 @@ def main():
         
         writer.close()
         
+        pdf_reader = PdfReader(f"pdfs/{name}")
+        pdf_writer = PdfWriter()
         
+        # Encriptar PDF
+        user_pwd = user['id']
+        pdf_writer.encrypt(user_pwd, use_128bit=True)
         
-        
+        # copiar las paginas del pdf original al nuevo PDF encriptado
+        for page_num in range(len(pdf_reader.pages)):
+            pdf_writer.add_page(pdf_reader.pages[page_num])
+            
+        #Guardar el PDF encriptado
+        with open(f"pdfs/{name}", "wb") as out_pdf:
+            pdf_writer.write(out_pdf)
+
     end_time = time()
     
-    #print(f"El tiempo inicar es de {star_time}")
-    #print(f"El tiempo final es de {end_time}")
+    print(f"El tiempo inicar es de {star_time}")
+    print(f"El tiempo final es de {end_time}")
     total_time = end_time - star_time
-    #print(f"El tiempo final de ejecucion es de {total_time}")
+    print(f"El tiempo final de ejecucion es de {total_time}")
+    
 if __name__ == '__main__':
     main()
+
