@@ -83,7 +83,6 @@ def countMoves(listMoves, valueInit):
     return ".".join(reversed(sep))
 
 def main():
-    star_time = time()
     
     usersData = usersBase()
     
@@ -350,13 +349,6 @@ def main():
         with open(f"pdfs/{name}", "wb") as out_pdf:
             pdf_writer.write(out_pdf)
 
-    end_time = time()
-    
-    print(f"El tiempo inicar es de {star_time}")
-    print(f"El tiempo final es de {end_time}")
-    total_time = end_time - star_time
-    print(f"El tiempo final de ejecucion es de {total_time}")
-    
 if __name__ == '__main__':
     main()
 
