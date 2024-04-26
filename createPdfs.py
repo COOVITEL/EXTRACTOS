@@ -8,8 +8,14 @@ from time import time
 import pandas as pd
 from pandas import ExcelWriter
 from PyPDF2 import PdfWriter, PdfReader
+from typing import List, Tuple
 
-def cuentaInter():
+def cuentaInter() -> list:
+    """
+        CuentaInter recupera el numero de cuentas Interbancarias de un archivo excel.
+    Returns:
+        Lista con los objetos de las cuentas junto con Nit y la cuenta coovitel.
+    """
     try:
         # Intenta leer el archivo Excel
         df = pd.read_excel("dataSource/cuentasInter.xlsx")
@@ -34,8 +40,15 @@ def cuentaInter():
         print(f"Ocurrió un error al leer el archivo Excel: {e}")
         return []
 
-def current(init, end):
-    """"""
+def current(init: str, end: str) -> str:
+    """
+        Current crea un string con la cadena de texto de la fecha a usar en el formato Pdf.
+        Args:
+            init (str): Fecha inicial de los extractos.
+            end (str): Fecha final de los extractos.
+        Returns:
+            str: La fecha formateada para los Pdfs.
+    """
     monthsYear = {
     "01": 'Enero',
     "02": 'Febrero',
@@ -56,12 +69,26 @@ def current(init, end):
     month = monthsYear[dates[1]]
     return f"{start} al {last} de {month} del {dates[0]}"
 
-def countMoves(listMoves, valueInit):
+def countMoves(listMoves: list, valueInit: int) -> Tuple[List[dict], int, int]:
+    """Calcula y crea una lista de movimientos junto con su saldo actual en cada movimiento,
+    a su vez calcula y suma cada uno de los debitos y creditos de todos los movimientos.
+
+    Args:
+        listMoves (list): Lista de los movimientos.
+        valueInit (int): Valor inicial de la cuenta.
+
+    Returns:
+        tupla(list, int, int): 
+            list: Lista de movimientos jutno con el calculo de los debidos y creditos en el saldo inicial.
+            int: La suma de los debitos totales.
+            int: La suma de los creditos totales. 
+    """
     newList = []
     currentValue = valueInit
     dbTotal = 0
     cdTotal = 0
     for date in listMoves:
+        # Crea un nuevo objeto con los datos necesarios para cada movimiento
         datesMoves = {}
         datesMoves["fecha"] = str(date['F_MOVIMI']).split(' ')[0]
         datesMoves["descripcion"] = str(date['N_MOVIMI']).lower().capitalize()
@@ -78,58 +105,89 @@ def countMoves(listMoves, valueInit):
         datesMoves["total"] = str(currentValue)
         newList.append(datesMoves)
     return newList, dbTotal, cdTotal
-    rev = "".join(reversed(str(value)))
-    sep = [rev[i:i+3] for i in range(0, len(rev), 3)]
-    return ".".join(reversed(sep))
 
 def main():
-    
+    """Funcion main recupera todos los datos, usuarios, movimientos y cuentas.
+        Recorre cada uno de los usuarios y crea el archivo pdf y excel de los movimientos.
+    """
+    # Recupera los datos de los usuarios o cuentas
     usersData = usersBase()
     
+    # Recupera todos los movimientos de las cuentas
     movimentsData = movsBase()
 
+    # Recupera las cuentas interbancarias
     listCuentas = cuentaInter()
     
     usersList = []
+    listUsersNotCuentaInterbancaria = []
+    listUsersNotFoundCuentaInterbancaria = []
+    # Recorre uno a uno los users o cuentas
     for user in usersData:
-            userStructure = {}
-            userStructure["username"] = user["NNASOCIA"]
-            userStructure["id"] = str(user["AANUMNIT"])
-            userStructure["cuenta"] = str(user["N_CUENTA"])
-            try:
-                filterCuentaInt = [str(cuentInt['Cuenta Interbancaria']) for cuentInt in listCuentas if int(cuentInt["documento"]) == int(user["AANUMNIT"])][0]
-            except IndexError:
-                continue
-            userStructure["cuentaInt"] = filterCuentaInt if filterCuentaInt else "N/A"
-            userStructure["fecha"] = current(str(user["F_INI"]).split(" ")[0], str(user["F_FIN"]).split(" ")[0])
-            userStructure["estado"] = "CANCELADA" if user["I_ESTADO"] == "C" else "ACTIVO"
-            userStructure["saldo_anterior"] = str(user["SALDOINI"])
-            userStructure["saldo_actual"] = str(user["SALDOFIN"])
-            listMoves = [movs for movs in movimentsData if user["K_CUENTA"] == movs["K_CUENTA"]]
-            
-            movimientos, dbTotal, cdTotal = countMoves(listMoves, user["SALDOINI"])
-            
-            userStructure["movimientos"] = movimientos
-            userStructure["debitos"] = dbTotal
-            userStructure["creditos"] = cdTotal
-            
-            if userStructure["estado"] == "CANCELADA" and userStructure["movimientos"] == []:
-                continue
+        userStructure = {}
+        userStructure["username"] = user["NNASOCIA"]
+        userStructure["id"] = str(user["AANUMNIT"])
+        userStructure["cuenta"] = str(user["N_CUENTA"])
+        try:
+            filterCuentaInt = [str(cuentInt['Cuenta Interbancaria']) for cuentInt in listCuentas if int(cuentInt["documento"]) == int(user["AANUMNIT"])][0]
+        except IndexError:
+            listUsersNotCuentaInterbancaria.append(user['AANUMNIT'])
+            listUsersNotFoundCuentaInterbancaria.append(user['N_CUENTA'])
+            continue
+        userStructure["cuentaInt"] = filterCuentaInt if filterCuentaInt else "N/A"
+        userStructure["fecha"] = current(str(user["F_INI"]).split(" ")[0], str(user["F_FIN"]).split(" ")[0])
+        userStructure["estado"] = "CANCELADA" if user["I_ESTADO"] == "C" else "ACTIVO"
+        userStructure["saldo_anterior"] = str(user["SALDOINI"])
+        userStructure["saldo_actual"] = str(user["SALDOFIN"])
+        listMoves = [movs for movs in movimentsData if user["K_CUENTA"] == movs["K_CUENTA"]]
+        
+        movimientos, dbTotal, cdTotal = countMoves(listMoves, user["SALDOINI"])
+        
+        userStructure["movimientos"] = movimientos
+        userStructure["debitos"] = dbTotal
+        userStructure["creditos"] = cdTotal
+        
+        if userStructure["estado"] == "CANCELADA" and userStructure["movimientos"] == []:
+            continue
 
-            usersList.append(userStructure)
+        usersList.append(userStructure)
+
+    # Crear un archivo excel con todas las cuentas de ahorro que no tienen cuenta interbancaria
+    
+    df = pd.DataFrame({
+        'NIT': listUsersNotCuentaInterbancaria,
+        'Cuenta': listUsersNotFoundCuentaInterbancaria,
+    })
+    
+    df = df[['NIT', 'Cuenta']]
+    
+    nameFile = f"cuentasNotFound.xlsx"
+    writer = ExcelWriter(nameFile)
+    
+    df.to_excel(writer, 'Hoja 1', index=False)
+    
+    writer.close()
+    
+
 
     for user in usersList:
         # Crear el documento
+        
+        # Estructura el nombre requerido para crear cada PDF
         dateFile = user['fecha'].split(" ")
         nameFile = f"{dateFile[4][:3].upper()}-{dateFile[6]}_ID_"
         name = f"{nameFile}{user['id']}_EXTRACTO_CTA_AHORRO.PDF"
+        nameExcel = f"{nameFile}{user['id']}_EXTRACTO_CTA_AHORRO.xlsx"
+        # Crea el pdf
         doc = BaseDocTemplate(f"pdfs/{name}", pagesize=letter)
 
         # Definir el estilo de los elementos del documento
         styles = getSampleStyleSheet()
 
         def on_page(canvas, doc):
-            # Esta funcion crea el etilo general para todas las hojas que se creen dentro del pdf
+            """
+                on_page genera la estructura estandar para cada una de las hojas creadas en los pdfs.
+            """
             
             # Imagen de logo de coovitel que se agrega al documento
             canvas.drawImage("images/coovitel.png", 40, 720, width=190, height=45)
@@ -153,13 +211,13 @@ def main():
             # Imagen publicitaria dentro del pdf
             canvas.drawImage("images/imagepdf.png", 45, 490, width=515, height=187)
             
-            # Datos de numero d eproducto cuenta y estado del titular del extracto
+            # Datos de numero de producto cuenta y estado del titular del extracto
             canvas.setFillColorRGB(0.430, 0.470, 0.470)
             canvas.setFont("Helvetica-Bold", 11)
             canvas.drawString(45, 470, f"Cuenta Coopcentral")
-            canvas.drawString(48, 457, f"{user['cuentaInt']}")
+            canvas.drawString(48, 457, f"00{user['cuentaInt']}")
             canvas.drawString(190, 470, f"Cuenta de Ahorros Coovitel")
-            canvas.drawString(190, 457, f"00{user['cuenta']}")
+            canvas.drawString(190, 457, f"{user['cuenta']}")
             canvas.drawString(45, 440, f"Estado: {user['estado']}")
             
             # Rectangulo para la fecha del documento
@@ -185,7 +243,7 @@ def main():
 
             # Definicion de tamaño de cada una de las columnas dentro del documento
             table = Table(data, colWidths=130)
-            # Estilos de lla tabla general 
+            # Estilos de la tabla general 
             table.setStyle(TableStyle([
                 ('ROUNDEDCORNERS', [4, 4, 4, 4]),            
                 ('BOX', (0, 0), (-1, -1), 0.25, (0,0,0)), # Agrega un borde alrededor de toda la tabla
@@ -226,6 +284,7 @@ def main():
             # Numero de pagina, junto con su posicion dentro del pdf
             canvas.drawString(290, 15, f"Página {doc.page}")
 
+
         # Crear un PageTemplate con un Frame
         frame = Frame(doc.leftMargin + 48, doc.bottomMargin + 15, doc.width - 100, doc.height - 350, id='mainFrame')
 
@@ -236,7 +295,7 @@ def main():
         doc.addPageTemplates([template])
 
         # Definicion de las columnas prensentes en la segunda tabla, la cual contendra
-        # los movimientos de los extractos del titular
+        # los movimientos de los extractos del titular en PDF
         data = [
             ['Fecha', 'Transacción', 'Documento', 'Débito', 'Crédito', 'Saldos'],
         ]
@@ -327,7 +386,7 @@ def main():
         
         df = df[['Fecha', 'Numero', 'Año', 'Descripción', 'Debito', 'Credito', 'Saldo']]
         
-        nameFile = f"excels/{user['username']}.xlsx"
+        nameFile = f"excels/{nameExcel}"
         writer = ExcelWriter(nameFile)
         
         df.to_excel(writer, 'Hoja 1', index=False)

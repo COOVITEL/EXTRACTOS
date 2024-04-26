@@ -20,8 +20,8 @@ def usersBase():
             with conn.cursor() as cursor:
                 query = "SELECT * FROM Ahorr_vist_encab"
                 cursor.execute(query)
-                data = cursor.fetchmany(30)
-                #data = cursor.fetchall()
+                #data = cursor.fetchmany(30)
+                data = cursor.fetchall()
                 columns = [desc[0] for desc in cursor.description]
                 users = [dict(zip(columns, row)) for row  in data]
                 return users
