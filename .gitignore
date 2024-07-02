@@ -1,5 +1,15 @@
 venv/
 .env
 pdfs/
+pdfs_abril/
+pdfs_junio/
+pdfs_mayo/
+
 excels/
+excels_abril/
+excels_junio/
+excels_mayo/
+
 empty/
+
+dataSource/

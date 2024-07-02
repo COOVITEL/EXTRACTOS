@@ -9,6 +9,7 @@ import pandas as pd
 from pandas import ExcelWriter
 from PyPDF2 import PdfWriter, PdfReader
 from typing import List, Tuple
+import os
 
 def cuentaInter() -> list:
     """
@@ -21,7 +22,7 @@ def cuentaInter() -> list:
         df = pd.read_excel("dataSource/cuentasInter.xlsx")
         
         # Verifica si las columnas existen en el DataFrame
-        columns = ['documento', 'Cuenta Coovitel', 'Cuenta Interbancaria']
+        columns = ['documento', 'CuentaCoovitel', 'Cuenta Interbancaria']
         if not all(column in df.columns for column in columns):
             print("Algunas columnas no existen en el archivo Excel.")
             return []
@@ -128,13 +129,14 @@ def main():
         userStructure["username"] = user["NNASOCIA"]
         userStructure["id"] = str(user["AANUMNIT"])
         userStructure["cuenta"] = str(user["N_CUENTA"])
+        filterCuentaInt = ""
         try:
             filterCuentaInt = [str(cuentInt['Cuenta Interbancaria']) for cuentInt in listCuentas if int(cuentInt["documento"]) == int(user["AANUMNIT"])][0]
         except IndexError:
             listUsersNotCuentaInterbancaria.append(user['AANUMNIT'])
             listUsersNotFoundCuentaInterbancaria.append(user['N_CUENTA'])
-            continue
-        userStructure["cuentaInt"] = filterCuentaInt if filterCuentaInt else "N/A"
+        userStructure["cuentaInt"] = filterCuentaInt if filterCuentaInt else "00000000000"
+        
         userStructure["fecha"] = current(str(user["F_INI"]).split(" ")[0], str(user["F_FIN"]).split(" ")[0])
         userStructure["estado"] = "CANCELADA" if user["I_ESTADO"] == "C" else "ACTIVO"
         userStructure["saldo_anterior"] = str(user["SALDOINI"])
@@ -147,9 +149,9 @@ def main():
         userStructure["debitos"] = dbTotal
         userStructure["creditos"] = cdTotal
         
-        if userStructure["estado"] == "CANCELADA" and userStructure["movimientos"] == []:
+        if userStructure["estado"] == "CANCELADA" and userStructure["movimientos"] == [] and int(userStructure["saldo_anterior"]) == 0 and int(userStructure["saldo_actual"] == 0):
             continue
-
+        # if userStructure["id"] == "900161467" or userStructure['id'] == "900328654":
         usersList.append(userStructure)
 
     # Crear un archivo excel con todas las cuentas de ahorro que no tienen cuenta interbancaria
@@ -179,6 +181,13 @@ def main():
         name = f"{nameFile}{user['id']}_EXTRACTO_CTA_AHORRO.PDF"
         nameExcel = f"{nameFile}{user['id']}_EXTRACTO_CTA_AHORRO.xlsx"
         # Crea el pdf
+        if os.path.exists(f"pdfs/{name}"):
+            for index in range(10):
+                name = f"{nameFile}{user['id']}_EXTRACTO_CTA_AHORRO({index}).PDF"
+                if os.path.exists(f"pdfs/{name}"):
+                    continue
+                else:
+                    break
         doc = BaseDocTemplate(f"pdfs/{name}", pagesize=letter)
 
         # Definir el estilo de los elementos del documento
@@ -209,7 +218,7 @@ def main():
             canvas.roundRect(330, 682, width=225, height=37, radius=3)
             
             # Imagen publicitaria dentro del pdf
-            canvas.drawImage("images/imagepdf.png", 45, 490, width=515, height=187)
+            canvas.drawImage("images/imagepdf.jpeg", 45, 490, width=515, height=187)
             
             # Datos de numero de producto cuenta y estado del titular del extracto
             canvas.setFillColorRGB(0.430, 0.470, 0.470)
@@ -387,6 +396,13 @@ def main():
         df = df[['Fecha', 'Numero', 'Año', 'Descripción', 'Debito', 'Credito', 'Saldo']]
         
         nameFile = f"excels/{nameExcel}"
+        if os.path.exists(f"excels/{nameExcel}"):
+            for index in range(10):
+                nameExcel = f"{nameFile}{user['id']}_EXTRACTO_CTA_AHORRO({index}).xlsx"
+                if os.path.exists(f"excels/{nameExcel}"):
+                    continue
+                else:
+                    break
         writer = ExcelWriter(nameFile)
         
         df.to_excel(writer, 'Hoja 1', index=False)
@@ -410,4 +426,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
